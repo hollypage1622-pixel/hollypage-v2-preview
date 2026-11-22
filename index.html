@@ -132,9 +132,15 @@ html.gl-static .world,html.no-gl .world{display:none}
 .hero-cta .sub a{color:var(--cream);text-underline-offset:4px}
 .scene-final{position:absolute;z-index:5;left:0;right:0;bottom:0;text-align:center;opacity:0;transform:translateY(16px);pointer-events:none;padding:72px 20px 4.2vh;background:linear-gradient(180deg,transparent,rgba(4,18,10,.58) 55%,rgba(4,18,10,.84));will-change:transform,opacity}
 .scene-final .final-cap{font-family:var(--mincho);font-weight:600;font-size:clamp(21px,2.6vw,30px);line-height:1.6;text-shadow:0 2px 24px rgba(0,0,0,.65);margin-bottom:22px}
-.scroll-hint{position:absolute;right:32px;bottom:0;z-index:5;display:flex;flex-direction:column;align-items:center;gap:12px;color:rgba(243,239,227,.7);font-size:10px;letter-spacing:.34em;writing-mode:vertical-rl}
-.scroll-hint::after{content:"";width:1px;height:56px;background:linear-gradient(180deg,var(--sage),transparent);animation:hint 2.4s ease-in-out infinite}
-@keyframes hint{0%,100%{transform:scaleY(.55);transform-origin:top;opacity:.5}50%{transform:scaleY(1);opacity:1}}
+/* scroll cue: a drop of light falls down a fine line toward a chevron,
+   so the first view quietly says "down" without any headline or CTA */
+.scroll-hint{position:absolute;left:50%;bottom:30px;transform:translateX(-50%);z-index:5;display:flex;flex-direction:column;align-items:center;gap:11px;pointer-events:none;color:var(--cream)}
+.scroll-hint .sh-text{font-size:11px;letter-spacing:.44em;margin-right:-.44em;color:rgba(243,239,227,.95);text-shadow:0 0 14px rgba(255,244,205,.5),0 1px 10px rgba(0,0,0,.55)}
+.scroll-hint .sh-line{position:relative;width:1px;height:54px;background:linear-gradient(180deg,rgba(243,239,227,.34),rgba(243,239,227,.08))}
+.scroll-hint .sh-line i{position:absolute;left:50%;top:0;width:2px;margin-left:-1px;height:17px;border-radius:2px;background:linear-gradient(180deg,rgba(255,247,221,0),#fff7dd 45%,#f3efe3);box-shadow:0 0 9px 1px rgba(255,244,205,.55);animation:shDrop 2.3s cubic-bezier(.45,.05,.55,.95) infinite}
+.scroll-hint .sh-chev{display:block;animation:shBob 2.3s ease-in-out infinite;filter:drop-shadow(0 0 6px rgba(255,244,205,.4))}
+@keyframes shDrop{0%{transform:translateY(-18px);opacity:0}22%{opacity:1}72%{opacity:1}100%{transform:translateY(54px);opacity:0}}
+@keyframes shBob{0%,100%{transform:translateY(0);opacity:.75}50%{transform:translateY(5px);opacity:1}}
 
 /* fallback laptop (no WebGL / CDN failure) */
 .fallback-lap{display:none}
@@ -333,7 +339,8 @@ footer .copy{font-size:11px;color:rgba(243,239,227,.45);letter-spacing:.08em}
   .hero-price .item b{font-size:27px}
   .hero-price .sep{display:none}
   .btn-main{font-size:14.5px;padding:16px 34px}
-  .scroll-hint{display:none}
+  .scroll-hint{bottom:24px;gap:9px}
+  .scroll-hint .sh-line{height:46px}
   .scene-final .final-cap{font-size:20px}
   .sec-head{flex-direction:column;align-items:flex-start;gap:16px;margin-bottom:40px}
   .sec-head p.side{max-width:none}
@@ -474,7 +481,11 @@ footer .copy{font-size:11px;color:rgba(243,239,227,.45);letter-spacing:.08em}
         <a class="btn btn-main" href="mailto:info@hollypage.jp?subject=%E7%84%A1%E6%96%99%E3%83%87%E3%83%A2%E3%81%AE%E7%9B%B8%E8%AB%87">無料デモを相談する <span class="arr" aria-hidden="true">→</span></a>
       </div>
 
-      <p class="scroll-hint" id="scrollHint" aria-hidden="true">SCROLL</p>
+      <div class="scroll-hint" id="scrollHint" aria-hidden="true">
+        <span class="sh-text">SCROLL</span>
+        <span class="sh-line"><i></i></span>
+        <svg class="sh-chev" width="22" height="13" viewBox="0 0 24 14" fill="none"><polyline points="3 2.5 12 11 21 2.5" stroke="#f3efe3" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
     </div>
   </div>
 
