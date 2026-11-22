@@ -68,7 +68,10 @@ a{color:inherit}
 .scene-grad{position:absolute;inset:0;z-index:1;pointer-events:none;background:linear-gradient(180deg,rgba(6,23,14,.52) 0%,rgba(6,23,14,.06) 30%,rgba(6,23,14,.10) 55%,rgba(6,23,14,.58) 100%)}
 .scene-dim{position:absolute;inset:0;z-index:2;background:#04120a;opacity:0;pointer-events:none;will-change:opacity}
 .gl-wrap{position:absolute;inset:0;z-index:3}
-.gl-wrap canvas{display:block}
+.gl-wrap canvas{display:block;width:100%;height:100%}
+.scene-bloom{position:absolute;inset:0;z-index:4;pointer-events:none;opacity:0;background:radial-gradient(ellipse 72% 56% at 50% 58%,rgba(255,242,204,.55),rgba(196,232,176,.20) 46%,transparent 72%);mix-blend-mode:screen;will-change:opacity}
+.scene-white{position:absolute;inset:0;z-index:6;pointer-events:none;opacity:0;background:#fdfcf6;will-change:opacity}
+html.gl-static .scene-bloom,html.gl-static .scene-white,html.no-gl .scene-bloom,html.no-gl .scene-white{opacity:0!important}
 .scene-shade{position:absolute;inset:0;z-index:4;pointer-events:none;opacity:0;background:linear-gradient(180deg,transparent 50%,rgba(3,12,6,.34) 76%,rgba(3,12,6,.66) 100%);will-change:opacity}
 .overline{font-size:11px;letter-spacing:.4em;color:var(--sage);font-weight:700}
 .intro{background:var(--cream);color:var(--ink);padding:104px 0 96px}
@@ -346,6 +349,8 @@ footer .copy{font-size:11px;color:rgba(243,239,227,.45);letter-spacing:.08em}
       <div class="scene-dim" id="sceneDim" aria-hidden="true"></div>
       <div class="gl-wrap" id="glWrap" aria-hidden="true"><canvas id="gl"></canvas></div>
       <div class="scene-shade" id="sceneShade" aria-hidden="true"></div>
+      <div class="scene-bloom" id="sceneBloom" aria-hidden="true"></div>
+      <div class="scene-white" id="sceneWhite" aria-hidden="true"></div>
 
       <!-- fallback: static open laptop with LP (shown if WebGL/CDN unavailable) -->
       <div class="fallback-lap" aria-hidden="true">
@@ -851,6 +856,8 @@ function init(){
   var blurCopy=document.getElementById('photoBlurCopy');
   var dim=document.getElementById('sceneDim');
   var shade=document.getElementById('sceneShade');
+  var bloom=document.getElementById('sceneBloom');
+  var whiteEl=document.getElementById('sceneWhite');
   var finalEl=document.getElementById('sceneFinal');
   var hint=document.getElementById('scrollHint');
   var canvas=document.getElementById('gl');
@@ -1120,6 +1127,119 @@ function init(){
   ao.rotation.x=-Math.PI/2; ao.position.y=0.004; ao.renderOrder=2;
   group.add(ao);
 
+  /* ---------- magic: code glyphs & light motes lift off the screen ----------
+     Children of the hinge, so they are born exactly on the screen surface.
+     The laptop itself stays on the stump; only light and letters travel
+     toward the viewer. All motion is a deterministic function of the
+     scroll progress (magicT), so scrubbing back and forth is stable. */
+  var floatGroup=new THREE.Group();
+  floatGroup.visible=false;
+  hinge.add(floatGroup);
+  function glyphTexture(txt,color,px){
+    var c=makeCanvas(192,192), g=c.getContext('2d');
+    g.font='700 '+(px||92)+'px ui-monospace,Menlo,Consolas,monospace';
+    g.textAlign='center'; g.textBaseline='middle';
+    g.shadowColor=color; g.shadowBlur=30;
+    g.fillStyle=color;
+    g.fillText(txt,96,102); g.fillText(txt,96,102);
+    var t=new THREE.CanvasTexture(c);
+    t.colorSpace=THREE.SRGBColorSpace;
+    return t;
+  }
+  var GLYPH_TEX=[
+    glyphTexture('</>','#9fe8bb'), glyphTexture('h1','#8fd0a8'),
+    glyphTexture('{ }','#e8c07a'), glyphTexture('朝','#f6efdd',96),
+    glyphTexture('一杯','#dcebc0',72), glyphTexture('class','#e8c07a',58),
+    glyphTexture('div','#8fd0a8',64), glyphTexture('予約','#bfe3a8',72),
+    glyphTexture('</p>','#a8c69f',58), glyphTexture('焙煎','#e8c07a',72),
+    glyphTexture('¥600','#f6efdd',64), glyphTexture('menu','#dcebc0',58)
+  ];
+  function rnd(seed){ var x=Math.sin(seed*127.1+311.7)*43758.5453; return x-Math.floor(x); }
+  var glyphGeo=new THREE.PlaneGeometry(0.34,0.34);
+  var glyphs=[];
+  for(var gi=0; gi<110; gi++){
+    var gmat=new THREE.MeshBasicMaterial({map:GLYPH_TEX[gi%GLYPH_TEX.length],transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide});
+    var gmesh=new THREE.Mesh(glyphGeo,gmat);
+    gmesh.renderOrder=5;
+    floatGroup.add(gmesh);
+    glyphs.push({
+      mesh:gmesh,
+      sx:(rnd(gi*3+1)*2-1)*1.32,
+      sy:1.08+(rnd(gi*3+2)*2-1)*0.82,
+      t0:rnd(gi*7+3)*0.5,
+      dur:0.42+rnd(gi*7+4)*0.2,
+      driftX:(rnd(gi*7+5)*2-1)*1.5,
+      rise:0.5+rnd(gi*7+6)*1.1,
+      outZ:1.7+rnd(gi*7+7)*1.6,
+      spin:(rnd(gi*7+8)*2-1)*1.1,
+      sway:rnd(gi*7+9)*6.28,
+      scale0:0.55+rnd(gi*7+10)*1.05
+    });
+  }
+  /* soft light motes */
+  var dotC=makeCanvas(64,64), dctx=dotC.getContext('2d');
+  var dgr2=dctx.createRadialGradient(32,32,2,32,32,30);
+  dgr2.addColorStop(0,'rgba(255,246,220,1)'); dgr2.addColorStop(0.4,'rgba(255,238,196,.55)'); dgr2.addColorStop(1,'rgba(255,238,196,0)');
+  dctx.fillStyle=dgr2; dctx.fillRect(0,0,64,64);
+  var dotTex=new THREE.CanvasTexture(dotC);
+  var MOTE_N=150;
+  var motePos=new Float32Array(MOTE_N*3);
+  var moteSeed=[];
+  for(var mi=0; mi<MOTE_N; mi++){
+    moteSeed.push({
+      sx:(rnd(mi*5+21)*2-1)*1.55,
+      sy:1.08+(rnd(mi*5+22)*2-1)*0.95,
+      sz:0.08+rnd(mi*5+23)*0.5,
+      t0:rnd(mi*5+24)*0.6,
+      dur:0.34+rnd(mi*5+25)*0.22,
+      driftX:(rnd(mi*5+26)*2-1)*1.1,
+      rise:0.7+rnd(mi*5+27)*1.3,
+      outZ:1.2+rnd(mi*5+28)*1.8
+    });
+  }
+  var moteGeo=new THREE.BufferGeometry();
+  moteGeo.setAttribute('position',new THREE.BufferAttribute(motePos,3));
+  var moteMat=new THREE.PointsMaterial({size:0.085,map:dotTex,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,color:0xffeec4,sizeAttenuation:true});
+  var motes=new THREE.Points(moteGeo,moteMat);
+  motes.renderOrder=4;
+  floatGroup.add(motes);
+
+  function updateMagic(mt){
+    var on=mt>0.001&&mt<0.999;
+    floatGroup.visible=on;
+    if(!on) return;
+    var i, ph, ee;
+    for(i=0;i<glyphs.length;i++){
+      var q=glyphs[i];
+      ph=clamp01((mt-q.t0)/q.dur);
+      ee=1-Math.pow(1-ph,2);
+      q.mesh.position.set(
+        q.sx + q.driftX*ee + Math.sin(ph*5+q.sway)*0.09*ee,
+        q.sy + q.rise*ee,
+        0.07 + q.outZ*ee
+      );
+      q.mesh.rotation.set(
+        Math.sin(ph*3+q.sway)*0.35*ee,
+        Math.cos(ph*2.4+q.sway)*0.45*ee,
+        q.spin*ee
+      );
+      var fo=1-clamp01((ph-0.68)/0.32);
+      q.mesh.material.opacity=0.95*clamp01(ph/0.13)*fo;
+      var qs=q.scale0*(0.7+0.95*ee);
+      q.mesh.scale.set(qs,qs,1);
+    }
+    for(i=0;i<MOTE_N;i++){
+      var s=moteSeed[i];
+      ph=clamp01((mt-s.t0)/s.dur);
+      ee=1-Math.pow(1-ph,2);
+      motePos[i*3]  =s.sx + s.driftX*ee;
+      motePos[i*3+1]=s.sy + s.rise*ee;
+      motePos[i*3+2]=s.sz + s.outZ*ee;
+    }
+    moteGeo.attributes.position.needsUpdate=true;
+    moteMat.opacity=0.85*clamp01(mt/0.1)*(1-clamp01((mt-0.8)/0.2));
+  }
+
   /* ---------- layout / camera framing ---------- */
   var anchor={x:0,y:0,stumpW:0};
   var isPortrait=false;
@@ -1149,24 +1269,71 @@ function init(){
     scrollLen=Math.max(1,scrollEl.offsetHeight-H);
     if(STATIC){ setupStatic(); return; }
     var targetPx=anchor.stumpW*(isPortrait?0.44:0.62);
+    targetPx=Math.min(targetPx,W*0.86);
     var visW=3.35*(W/Math.max(60,targetPx));
     var D=visW/(2*tanF*camera.aspect);
-    C0.set(0,1.6,D);
     /* place the laptop: unproject the stump anchor with the same near-level
        camera orientation used for the p=0 render, so the base contact point
        lands exactly on the anchor */
-    camera.position.copy(C0);
-    camera.lookAt(0,0.6,0);
-    camera.updateMatrixWorld(true);
-    var v=new THREE.Vector3((anchor.x/W)*2-1, -(anchor.y/H)*2+1, 0.5).unproject(camera);
-    var dir=v.sub(camera.position).normalize();
-    var dist=-camera.position.z/dir.z;
-    var P=camera.position.clone().add(dir.multiplyScalar(dist));
-    group.position.set(P.x,P.y,0);
-    T0.set(0,0.6,0);
-    key.position.copy(P).add(new THREE.Vector3(5,7,4));
-    key.target.position.copy(P);
-    key.target.updateMatrixWorld();
+    function place(){
+      C0.set(0,1.6,D);
+      camera.position.copy(C0);
+      camera.lookAt(0,0.6,0);
+      camera.updateMatrixWorld(true);
+      var v=new THREE.Vector3((anchor.x/W)*2-1, -(anchor.y/H)*2+1, 0.5).unproject(camera);
+      var dir=v.sub(camera.position).normalize();
+      var dist=-camera.position.z/dir.z;
+      var P=camera.position.clone().add(dir.multiplyScalar(dist));
+      group.position.set(P.x,P.y,0);
+      T0.set(0,0.6,0);
+      key.position.copy(P).add(new THREE.Vector3(5,7,4));
+      key.target.position.copy(P);
+      key.target.updateMatrixWorld();
+    }
+    /* projected on-screen bbox of the (closed) laptop at the p=0 pose */
+    function laptopBBox(){
+      camera.position.copy(C0);
+      camera.lookAt(0,0.6,0);
+      camera.updateMatrixWorld(true);
+      var th=-0.13, co=Math.cos(th), si=Math.sin(th);
+      var cs=[[-1.72,0,-1.2],[1.72,0,-1.2],[-1.72,0,1.2],[1.72,0,1.2],
+              [-1.72,0.3,-1.2],[1.72,0.3,-1.2],[-1.72,0.3,1.2],[1.72,0.3,1.2]];
+      var b={minX:1e9,maxX:-1e9,minY:1e9,maxY:-1e9};
+      for(var i=0;i<8;i++){
+        var lx=cs[i][0], lz=cs[i][2];
+        var v=new THREE.Vector3(
+          group.position.x + lx*co + lz*si,
+          group.position.y + cs[i][1],
+          group.position.z - lx*si + lz*co).project(camera);
+        var px=(v.x*0.5+0.5)*W, py=(-v.y*0.5+0.5)*H;
+        if(px<b.minX)b.minX=px; if(px>b.maxX)b.maxX=px;
+        if(py<b.minY)b.minY=py; if(py>b.maxY)b.maxY=py;
+      }
+      return b;
+    }
+    /* aspect-adaptive fit pass: whatever the viewport's aspect / visible
+       height, pull the camera back until the WHOLE laptop (with margin)
+       sits inside the frame at p=0, then fine-tune toward the target size */
+    place();
+    for(var fit=0; fit<3; fit++){
+      var bb=laptopBBox(), bw=bb.maxX-bb.minX, need=1;
+      if(bw>W*0.94) need=Math.max(need,bw/(W*0.94));
+      if(bb.maxY>H*0.975 && bb.maxY>anchor.y+10 && H*0.975>anchor.y+10)
+        need=Math.max(need,(bb.maxY-anchor.y)/(H*0.975-anchor.y));
+      if(bb.minY<H*0.05 && anchor.y-bb.minY>10 && anchor.y>H*0.05+10)
+        need=Math.max(need,(anchor.y-bb.minY)/(anchor.y-H*0.05));
+      if(bb.minX<W*0.03 && anchor.x-bb.minX>10 && anchor.x>W*0.03+10)
+        need=Math.max(need,(anchor.x-bb.minX)/(anchor.x-W*0.03));
+      if(bb.maxX>W*0.97 && bb.maxX-anchor.x>10 && W*0.97>anchor.x+10)
+        need=Math.max(need,(bb.maxX-anchor.x)/(W*0.97-anchor.x));
+      if(need===1){
+        var ns=bw/(targetPx*1.03);
+        if(ns>1.05||ns<0.88) need=Math.min(1.3,Math.max(0.85,ns));
+      }
+      if(Math.abs(need-1)<0.01) break;
+      D*=need;
+      place();
+    }
     lastP=-1; lastKey='';
   }
   function setupStatic(){
@@ -1197,17 +1364,25 @@ function init(){
   var camPos=new THREE.Vector3(), camTgt=new THREE.Vector3(), endPos=new THREE.Vector3(), endTgt=new THREE.Vector3();
 
   function update(p){
-    var openT=easeIO(seg(p,0.18,0.42));
-    var dollyT=easeIO(seg(p,0.42,0.68));
-    var typeT=seg(p,0.44,0.66);
-    var lpT=seg(p,0.68,0.84);
-    var badgeT=seg(p,0.80,0.88);
-    var glow=seg(p,0.20,0.45);
+    /* timeline: open -> type -> magic (light & code lift off the screen)
+       -> whiteout -> LP. The laptop never travels toward the viewer; the
+       only camera move happens hidden behind the whiteout. */
+    var openT=easeIO(seg(p,0.16,0.40));
+    var glow=seg(p,0.18,0.40);
+    var typeT=seg(p,0.36,0.58);
+    var magicT=seg(p,0.56,0.84);
+    var whiteIn=seg(p,0.80,0.885);
+    var whiteOut=seg(p,0.905,0.985);
+    var dollyT=easeIO(seg(p,0.80,0.93));
+    var lpT=seg(p,0.84,0.94);
+    var badgeT=seg(p,0.92,0.99);
 
     hinge.rotation.x=lerp(1.536,-0.16,openT);
-    group.rotation.y=lerp(-0.13,0,dollyT);
+    var rotBase=lerp(-0.13,-0.04,easeIO(magicT));
+    group.rotation.y=lerp(rotBase,0,dollyT);
     screenMat.color.setScalar(0.25+0.75*glow);
-    glowLight.intensity=glow*9;
+    glowLight.intensity=glow*9 + Math.sin(Math.min(1,magicT)*Math.PI)*13;
+    updateMagic(magicT);
 
     /* CSS layers */
     hint.style.opacity=(1-seg(p,0,0.05)).toFixed(3);
@@ -1217,21 +1392,23 @@ function init(){
        the laptop base instead of letting it hang over the moss */
     var dy=(H/2-anchor.y)*0.16*dollyT + H*0.19*dollyT*dollyT;
     stack.style.transform='translate('+dx.toFixed(1)+'px,'+dy.toFixed(1)+'px) scale('+sc.toFixed(4)+')';
-    blurCopy.style.opacity=(seg(p,0.5,0.8)*0.95).toFixed(3);
-    dim.style.opacity=(dollyT*0.5).toFixed(3);
-    shade.style.opacity=(seg(p,0.40,0.56)*(1-seg(p,0.74,0.92))*0.65).toFixed(3);
-    var finO=seg(p,0.88,0.97);
+    blurCopy.style.opacity=Math.min(0.95, seg(p,0.56,0.84)*0.85 + dollyT*0.15).toFixed(3);
+    dim.style.opacity=(0.22*magicT*(1-dollyT) + dollyT*0.5).toFixed(3);
+    shade.style.opacity=(seg(p,0.36,0.52)*(1-seg(p,0.78,0.92))*0.6).toFixed(3);
+    bloom.style.opacity=(clamp01(magicT*2.6)*(1-whiteIn)*0.95).toFixed(3);
+    whiteEl.style.opacity=(whiteIn*(1-whiteOut)).toFixed(3);
+    var finO=seg(p,0.94,0.995);
     finalEl.style.opacity=finO.toFixed(3);
     finalEl.style.transform='translateY('+((1-finO)*16).toFixed(1)+'px)';
-    finalEl.style.pointerEvents=(p>0.9)?'auto':'none';
+    finalEl.style.pointerEvents=(p>0.95)?'auto':'none';
 
-    /* camera: dolly to the screen, then keep pushing in so the screen
-       spreads to fill the whole viewport (coverage 0.84 -> 0.96) */
+    /* camera: stays at the stump framing while the magic plays; the dolly
+       to the full-screen LP position runs behind the whiteout */
     scene.updateMatrixWorld(true);
     screenMesh.getWorldPosition(Sv);
     screenMesh.getWorldQuaternion(Qv);
     Nv.set(0,0,1).applyQuaternion(Qv);
-    var cov=0.84+0.12*seg(p,0.66,0.97);
+    var cov=0.96;
     var dist=(2.9/cov)/(2*tanF*camera.aspect);
     endPos.copy(Sv).addScaledVector(Nv,dist);
     endTgt.copy(Sv); endTgt.y-=0.04;
@@ -1265,7 +1442,7 @@ function init(){
     var p=getP();
     if(Math.abs(p-lastP)<0.0004 && lastKey.indexOf('|-')===-1){
       /* still need blink refresh during typing */
-      if(!(p>0.44&&p<0.68)) return;
+      if(!(p>0.36&&p<0.60)) return;
     }
     lastP=p;
     update(p);
