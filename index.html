@@ -59,9 +59,9 @@ a{color:inherit}
 .btn-dark:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(10,31,19,.35)}
 
 /* ---------- scene (scroll story) ---------- */
-/* track: the story plays over the first 320vh of scroll travel; the final
+/* track: the story plays over the first 600vh of scroll travel; the final
    140vh is a hold that keeps the finished other-world scene on stage */
-.scene-scroll{position:relative;height:560vh;background:var(--g950)}
+.scene-scroll{position:relative;height:840vh;background:var(--g950)}
 .scene-stage{position:sticky;top:0;height:100vh;height:100svh;overflow:hidden;background:var(--g950)}
 .photo-back{position:absolute;inset:0;background-image:var(--stump-img);background-size:cover;background-position:center;filter:blur(16px) brightness(.48) saturate(.92);transform:scale(1.12);z-index:0}
 .photo-stack{position:absolute;inset:0;z-index:0;will-change:transform}
@@ -1236,6 +1236,141 @@ function init(){
   ao.rotation.x=-Math.PI/2; ao.position.y=0.004; ao.renderOrder=2;
   group.add(ao);
 
+  /* ---------- the blue bird ----------
+     A small stylised songbird (ruribitaki blue) perched on the stump,
+     right of the closed laptop. It idles quietly while the lid is shut,
+     starts as the lid begins to open, and flies up and out of frame —
+     gone long before the magic phase. Its perch is a child of the laptop
+     group, so layout()'s adaptive framing carries it along. Position
+     along the flight path is a deterministic function of scroll progress
+     (flyT); only the idle micro-motion and the wing flap run on a clock,
+     via a small side loop (birdFrame) that re-renders while the bird is
+     on stage and the scroll is still. */
+  var BIRD_PERCH={x:2.30,z:0.62};
+  var birdMats=[];
+  function birdMat(color,rough,emissive,ei){
+    var m=new THREE.MeshStandardMaterial({color:color,roughness:rough,metalness:0.0,transparent:true});
+    if(emissive){ m.emissive=new THREE.Color(emissive); m.emissiveIntensity=ei||0.35; }
+    birdMats.push(m);
+    return m;
+  }
+  var birdBlue=birdMat(0x3568c4,0.85,0x0a1f4d,0.4);
+  var birdBlueDk=birdMat(0x2a57ab,0.9,0x0a1f4d,0.35);
+  var birdPale=birdMat(0xe9e3d3,0.95);
+  var birdOrange=birdMat(0xd9822b,0.9);
+  var birdDark=birdMat(0x2b2b30,0.6);
+  var birdEye=birdMat(0x101216,0.25);
+
+  var birdShadowTex=(function(){
+    var c=makeCanvas(128,128), g=c.getContext('2d');
+    var gr=g.createRadialGradient(64,64,4,64,64,62);
+    gr.addColorStop(0,'rgba(8,12,6,0.55)');
+    gr.addColorStop(0.6,'rgba(8,12,6,0.26)');
+    gr.addColorStop(1,'rgba(8,12,6,0)');
+    g.fillStyle=gr; g.fillRect(0,0,128,128);
+    return new THREE.CanvasTexture(c);
+  })();
+  var birdShadowMat=new THREE.MeshBasicMaterial({map:birdShadowTex,transparent:true,depthWrite:false});
+  var birdShadow=new THREE.Mesh(new THREE.PlaneGeometry(1.0,0.85),birdShadowMat);
+  birdShadow.rotation.x=-Math.PI/2;
+  birdShadow.position.set(BIRD_PERCH.x,0.007,BIRD_PERCH.z);
+  birdShadow.renderOrder=3;
+  group.add(birdShadow);
+
+  var bird=new THREE.Group();
+  bird.position.set(BIRD_PERCH.x,0,BIRD_PERCH.z);
+  group.add(bird);
+  var birdBody=new THREE.Group();
+  bird.add(birdBody);
+  function birdPart(geo,mat,x,y,z,sx,sy,sz,parent){
+    var ms=new THREE.Mesh(geo,mat);
+    ms.position.set(x,y,z);
+    if(sx!==undefined) ms.scale.set(sx,sy,sz);
+    ms.castShadow=true;
+    (parent||birdBody).add(ms);
+    return ms;
+  }
+  /* legs & feet */
+  birdPart(new THREE.CylinderGeometry(0.013,0.013,0.10,6),birdDark,-0.07,0.05,0.03);
+  birdPart(new THREE.CylinderGeometry(0.013,0.013,0.10,6),birdDark, 0.07,0.05,0.03);
+  birdPart(new THREE.BoxGeometry(0.10,0.016,0.16),birdDark,-0.07,0.008,0.06);
+  birdPart(new THREE.BoxGeometry(0.10,0.016,0.16),birdDark, 0.07,0.008,0.06);
+  /* body & pale underside, orange flanks (the ruribitaki's markings) */
+  birdPart(new THREE.SphereGeometry(0.21,24,18),birdBlue,0,0.30,-0.03,0.92,0.85,1.32);
+  birdPart(new THREE.SphereGeometry(0.185,24,18),birdPale,0,0.262,0.018,0.85,0.78,1.15);
+  birdPart(new THREE.SphereGeometry(0.095,16,12),birdOrange,-0.168,0.26,-0.02,0.38,0.85,1.35);
+  birdPart(new THREE.SphereGeometry(0.095,16,12),birdOrange, 0.168,0.26,-0.02,0.38,0.85,1.35);
+  /* tail, held angled up from the rear */
+  var tailPivot=new THREE.Group();
+  tailPivot.position.set(0,0.34,-0.20);
+  tailPivot.rotation.x=0.42;
+  birdBody.add(tailPivot);
+  birdPart(new THREE.BoxGeometry(0.17,0.03,0.38),birdBlueDk,0,0,-0.17,1,1,1,tailPivot);
+  /* head: blue cap, pale throat, cone beak, bead eyes */
+  var headG=new THREE.Group();
+  headG.position.set(0,0.46,0.15);
+  birdBody.add(headG);
+  birdPart(new THREE.SphereGeometry(0.145,24,18),birdBlue,0,0,0,0.95,0.92,1.0,headG);
+  birdPart(new THREE.SphereGeometry(0.115,20,14),birdPale,0,-0.058,0.045,0.85,0.8,0.9,headG);
+  var beak=birdPart(new THREE.ConeGeometry(0.032,0.13,10),birdDark,0,-0.015,0.16,1,1,1,headG);
+  beak.rotation.x=Math.PI/2;
+  birdPart(new THREE.SphereGeometry(0.021,10,8),birdEye,-0.089,0.03,0.108,1,1,1,headG);
+  birdPart(new THREE.SphereGeometry(0.021,10,8),birdEye, 0.089,0.03,0.108,1,1,1,headG);
+  /* wings on shoulder pivots: folded flat against the body at rest,
+     flapping around the pivot z-axis in flight */
+  function makeWing(side){
+    var pv=new THREE.Group();
+    pv.position.set(0.13*side,0.40,0.03);
+    birdBody.add(pv);
+    birdPart(new THREE.SphereGeometry(0.16,20,14),birdBlueDk,0.11*side,-0.05,-0.04,0.30,0.60,1.5,pv);
+    return pv;
+  }
+  var wingL=makeWing(-1), wingR=makeWing(1);
+  wingL.rotation.z=0.12; wingR.rotation.z=-0.12;
+
+  function updateBird(p,now){
+    /* flight: starts the moment the lid cracks open, away by p=0.36 */
+    var e=seg(p,0.175,0.36);
+    var ee=Math.pow(e,1.5);
+    var flapEnv=seg(p,0.175,0.215);
+    var idle=1-flapEnv;
+    bird.visible=e<1;
+    bird.position.set(
+      BIRD_PERCH.x + 3.4*ee*ee,
+      6.6*ee + 0.20*Math.sin(Math.min(1,e*2.4)*Math.PI)*(1-ee),
+      BIRD_PERCH.z + 1.3*ee
+    );
+    bird.rotation.y=0.95*ee;
+    birdBody.rotation.x=-0.42*ee + Math.sin(now*0.048)*0.05*flapEnv;
+    birdBody.rotation.z=-0.35*ee;
+    birdBody.position.y=Math.sin(now*0.0016)*0.008*idle + Math.sin(now*0.048)*0.03*flapEnv;
+    /* wings: folded at rest, beating fast once startled */
+    var flap=lerp(-0.12, 0.05+Math.sin(now*0.048)*0.85, flapEnv);
+    wingL.rotation.z=-flap;
+    wingR.rotation.z=flap;
+    /* idle life: a breath, a look around, the odd head tilt / tail flick */
+    headG.rotation.z=(0.13*Math.sin(now*0.00093+1.3)+0.07*Math.sin(now*0.0027))*idle;
+    headG.rotation.y=0.34*Math.sin(now*0.00041+0.4)*(0.4+0.6*(0.5+0.5*Math.sin(now*0.00029+2.1)))*idle;
+    headG.rotation.x=0.06*Math.sin(now*0.0021+0.8)*idle - 0.25*flapEnv;
+    tailPivot.rotation.x=0.42 + 0.05*Math.sin(now*0.0013+2.0)*idle + 0.15*ee;
+    /* soft landing shadow stays on the stump and gives up as it climbs */
+    birdShadowMat.opacity=1-e;
+    var ss=1-0.3*ee;
+    birdShadow.scale.set(ss,ss,1);
+    /* insurance fade in the last stretch, against the bright canopy */
+    var op=1-seg(e,0.86,1.0);
+    for(var bi=0;bi<birdMats.length;bi++) birdMats[bi].opacity=op;
+  }
+  /* the scroll handler only re-renders on progress change, so the bird's
+     clock-driven idle runs on this side loop while it is on stage */
+  function birdFrame(now){
+    requestAnimationFrame(birdFrame);
+    if(STATIC||!inView) return;
+    if(lastP<0||lastP>=0.40) return;
+    updateBird(lastP,now);
+    renderer.render(scene,camera);
+  }
+
   /* ---------- magic: code glyphs & light motes lift off the screen ----------
      Children of the hinge, so they are born exactly on the screen surface.
      The laptop itself stays on the stump; only light and letters travel
@@ -1529,6 +1664,8 @@ function init(){
   function setupStatic(){
     group.position.set(0,0,0);
     group.rotation.y=0;
+    bird.visible=false;
+    birdShadow.visible=false;
     hinge.rotation.x=-0.16;
     var Ds=(3.35/0.82)/(2*tanF*camera.aspect);
     camera.position.set(0,1.5,Ds);
@@ -1573,6 +1710,7 @@ function init(){
     screenMat.color.setScalar(0.25+0.75*glow);
     glowLight.intensity=glow*9 + Math.sin(Math.min(1,magicT)*Math.PI)*13;
     updateMagic(magicT);
+    updateBird(p,performance.now());
 
     /* CSS layers */
     hint.style.opacity=(1-seg(p,0,0.05)).toFixed(3);
@@ -1630,12 +1768,12 @@ function init(){
   function frame(){
     requestAnimationFrame(frame);
     if(!inView) return;
-    /* timeline progress: getP() spans the whole 460vh of travel, but the
-       story is mapped onto its first 320vh (the original track). Past
-       that, p stays 1 and the completed scene holds — float animation
-       and the world code-fx run on their own clocks — until the stage
-       finally unpins into the intro section. */
-    var p=clamp01(getP()/(320/460));
+    /* timeline progress: getP() spans the whole 740vh of travel, but the
+       story is mapped onto its first 600vh, so every phase plays out
+       slowly. Past that, p stays 1 and the completed scene holds — float
+       animation and the world code-fx run on their own clocks — until
+       the stage finally unpins into the intro section. */
+    var p=clamp01(getP()/(600/740));
     if(Math.abs(p-lastP)<0.0004 && lastKey.indexOf('|-')===-1){
       /* still need blink refresh during typing */
       if(!(p>0.36&&p<0.60)) return;
@@ -1663,6 +1801,7 @@ function init(){
     renderer.render(scene,camera);
     requestAnimationFrame(frame);
     requestAnimationFrame(worldFrame);
+    requestAnimationFrame(birdFrame);
     if(document.fonts&&document.fonts.ready){
       document.fonts.ready.then(function(){ lastKey=''; });
     }
