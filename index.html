@@ -59,7 +59,9 @@ a{color:inherit}
 .btn-dark:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(10,31,19,.35)}
 
 /* ---------- scene (scroll story) ---------- */
-.scene-scroll{position:relative;height:420vh;background:var(--g950)}
+/* track: the story plays over the first 320vh of scroll travel; the final
+   140vh is a hold that keeps the finished other-world scene on stage */
+.scene-scroll{position:relative;height:560vh;background:var(--g950)}
 .scene-stage{position:sticky;top:0;height:100vh;height:100svh;overflow:hidden;background:var(--g950)}
 .photo-back{position:absolute;inset:0;background-image:var(--stump-img);background-size:cover;background-position:center;filter:blur(16px) brightness(.48) saturate(.92);transform:scale(1.12);z-index:0}
 .photo-stack{position:absolute;inset:0;z-index:0;will-change:transform}
@@ -1617,7 +1619,12 @@ function init(){
   function frame(){
     requestAnimationFrame(frame);
     if(!inView) return;
-    var p=getP();
+    /* timeline progress: getP() spans the whole 460vh of travel, but the
+       story is mapped onto its first 320vh (the original track). Past
+       that, p stays 1 and the completed scene holds — float animation
+       and the world code-fx run on their own clocks — until the stage
+       finally unpins into the intro section. */
+    var p=clamp01(getP()/(320/460));
     if(Math.abs(p-lastP)<0.0004 && lastKey.indexOf('|-')===-1){
       /* still need blink refresh during typing */
       if(!(p>0.36&&p<0.60)) return;
