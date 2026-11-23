@@ -141,6 +141,17 @@ html.gl-static .world,html.no-gl .world{display:none}
 .scroll-hint .sh-chev{display:block;animation:shBob 2.3s ease-in-out infinite;filter:drop-shadow(0 0 6px rgba(255,244,205,.4))}
 @keyframes shDrop{0%{transform:translateY(-18px);opacity:0}22%{opacity:1}72%{opacity:1}100%{transform:translateY(54px);opacity:0}}
 @keyframes shBob{0%,100%{transform:translateY(0);opacity:.75}50%{transform:translateY(5px);opacity:1}}
+/* end-scene scroll cue: same light language as the opening hint, one
+   notch quieter so the CTA stays the hero. It rides .scene-final's own
+   finO fade, so it arrives with the finished pages and stays through
+   the hold, then leaves with the pinned scene. */
+.final-hint{margin-top:26px;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none;color:var(--cream);opacity:.6}
+.final-hint .sh-text{font-size:9.5px;letter-spacing:.4em;margin-right:-.4em;color:rgba(243,239,227,.85);text-shadow:0 0 10px rgba(255,244,205,.35),0 1px 8px rgba(0,0,0,.5)}
+.final-hint .sh-line{position:relative;width:1px;height:32px;background:linear-gradient(180deg,rgba(243,239,227,.26),rgba(243,239,227,.05))}
+.final-hint .sh-line i{position:absolute;left:50%;top:0;width:2px;margin-left:-1px;height:12px;border-radius:2px;background:linear-gradient(180deg,rgba(255,247,221,0),#fff7dd 45%,#f3efe3);box-shadow:0 0 7px 1px rgba(255,244,205,.4);animation:fhDrop 2.3s cubic-bezier(.45,.05,.55,.95) infinite}
+.final-hint .sh-chev{display:block;animation:shBob 2.3s ease-in-out infinite;filter:drop-shadow(0 0 4px rgba(255,244,205,.3))}
+@keyframes fhDrop{0%{transform:translateY(-13px);opacity:0}22%{opacity:1}72%{opacity:1}100%{transform:translateY(32px);opacity:0}}
+html.gl-static .final-hint,html.no-gl .final-hint{display:none}
 
 /* fallback laptop (no WebGL / CDN failure) */
 .fallback-lap{display:none}
@@ -479,6 +490,11 @@ footer .copy{font-size:11px;color:rgba(243,239,227,.45);letter-spacing:.08em}
       <div class="scene-final" id="sceneFinal">
         <p class="final-cap">あなたの店のホームページが、<br>ここから生まれます。</p>
         <a class="btn btn-main" href="mailto:info@hollypage.jp?subject=%E7%84%A1%E6%96%99%E3%83%87%E3%83%A2%E3%81%AE%E7%9B%B8%E8%AB%87">無料デモを相談する <span class="arr" aria-hidden="true">→</span></a>
+        <div class="final-hint" aria-hidden="true">
+          <span class="sh-text">SCROLL</span>
+          <span class="sh-line"><i></i></span>
+          <svg class="sh-chev" width="18" height="11" viewBox="0 0 24 14" fill="none"><polyline points="3 2.5 12 11 21 2.5" stroke="#f3efe3" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
       </div>
 
       <div class="scroll-hint" id="scrollHint" aria-hidden="true">
