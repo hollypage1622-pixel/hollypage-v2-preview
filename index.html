@@ -999,11 +999,12 @@ function init(){
 
   /* ---------- renderer / scene ---------- */
   var renderer=new THREE.WebGLRenderer({canvas:canvas,antialias:true,alpha:true,powerPreference:'high-performance'});
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,window.innerWidth<520?1.75:2));
+  var SMALL=window.innerWidth<520;
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,SMALL?1.5:2));
   renderer.outputColorSpace=THREE.SRGBColorSpace;
   renderer.toneMapping=THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure=1.06;
-  renderer.shadowMap.enabled=true;
+  renderer.shadowMap.enabled=!SMALL;
   renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   var scene=new THREE.Scene();
   var camera=new THREE.PerspectiveCamera(35,1,0.1,120);
@@ -1011,7 +1012,7 @@ function init(){
   var hemi=new THREE.HemisphereLight(0xcfe5bb,0x54432c,0.95);
   scene.add(hemi);
   var key=new THREE.DirectionalLight(0xffdfae,2.4);
-  key.castShadow=true;
+  key.castShadow=!SMALL;
   var SHADOW_RES=window.innerWidth<820?1024:2048; key.shadow.mapSize.set(SHADOW_RES,SHADOW_RES);
   key.shadow.camera.left=-4.5; key.shadow.camera.right=4.5;
   key.shadow.camera.top=4.5; key.shadow.camera.bottom=-4.5;
@@ -1404,7 +1405,7 @@ function init(){
   var worldOn=false, worldFxAlpha=0;
   function sizeWorldFx(){
     if(!W||!H) return;
-    var dpr=Math.min(window.devicePixelRatio||1,2);
+    var dpr=Math.min(window.devicePixelRatio||1,SMALL?1.5:2);
     worldFx.width=Math.round(W*dpr); worldFx.height=Math.round(H*dpr);
     wctx.setTransform(dpr,0,0,dpr,0,0);
   }
@@ -1576,7 +1577,7 @@ function init(){
   function easeIO(t){return t<0.5 ? 2*t*t : 1-Math.pow(-2*t+2,2)/2;}
   function lerp(a,b,t){return a+(b-a)*t;}
 
-  var lastP=-1, lastKey='';
+  var lastP=-1, lastKey='', lastDrawMs=0, lastDrawnChars=-1;
   var Sv=new THREE.Vector3(), Nv=new THREE.Vector3(), Qv=new THREE.Quaternion();
   var camPos=new THREE.Vector3(), camTgt=new THREE.Vector3(), endPos=new THREE.Vector3(), endTgt=new THREE.Vector3();
 
@@ -1640,9 +1641,15 @@ function init(){
     var blink=(Math.floor(Date.now()/530)%2===0);
     var key2=chars+'|'+Math.round(glow*16)+'|'+(chars<TOTAL?(blink?1:0):0);
     if(key2!==lastKey){
-      lastKey=key2;
-      drawScreen(chars,0,0,glow,blink);
-      screenTex.needsUpdate=true;
+      var nowMs=Date.now();
+      if(SMALL && chars!==lastDrawnChars && nowMs-lastDrawMs<24){
+        /* mobile: cap screen-texture uploads during fast typing scrolls;
+           the next frame retries, so the final state still lands */
+      }else{
+        lastKey=key2; lastDrawMs=nowMs; lastDrawnChars=chars;
+        drawScreen(chars,0,0,glow,blink);
+        screenTex.needsUpdate=true;
+      }
     }
   }
 
