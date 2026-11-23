@@ -999,7 +999,7 @@ function init(){
 
   /* ---------- renderer / scene ---------- */
   var renderer=new THREE.WebGLRenderer({canvas:canvas,antialias:true,alpha:true,powerPreference:'high-performance'});
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,window.innerWidth<520?1.75:2));
   renderer.outputColorSpace=THREE.SRGBColorSpace;
   renderer.toneMapping=THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure=1.06;
@@ -1012,7 +1012,7 @@ function init(){
   scene.add(hemi);
   var key=new THREE.DirectionalLight(0xffdfae,2.4);
   key.castShadow=true;
-  key.shadow.mapSize.set(2048,2048);
+  var SHADOW_RES=window.innerWidth<820?1024:2048; key.shadow.mapSize.set(SHADOW_RES,SHADOW_RES);
   key.shadow.camera.left=-4.5; key.shadow.camera.right=4.5;
   key.shadow.camera.top=4.5; key.shadow.camera.bottom=-4.5;
   key.shadow.camera.near=1; key.shadow.camera.far=30;
@@ -1209,6 +1209,7 @@ function init(){
 
   /* ---------- laptop model ---------- */
   var group=new THREE.Group();
+  group.rotation.y=-0.13;
   scene.add(group);
   var bodyMat=new THREE.MeshStandardMaterial({color:0x363b40,roughness:0.48,metalness:0.42});
   var base=new THREE.Mesh(new RoundedBoxGeometry(3.3,0.16,2.25,4,0.05),bodyMat);
@@ -1223,6 +1224,7 @@ function init(){
   group.add(deck);
   var hinge=new THREE.Group();
   hinge.position.set(0,0.17,-1.04);
+  hinge.rotation.x=1.536;
   group.add(hinge);
   var lid=new THREE.Mesh(new RoundedBoxGeometry(3.3,2.2,0.1,4,0.045),bodyMat);
   lid.position.set(0,1.08,-0.03);
@@ -1235,6 +1237,7 @@ function init(){
   bezel.position.set(0,1.08,0.024);
   hinge.add(bezel);
   var screenMat=new THREE.MeshBasicMaterial({map:screenTex});
+  screenMat.color.setScalar(0.25);
   var screenMesh=new THREE.Mesh(new THREE.PlaneGeometry(2.9,1.9),screenMat);
   screenMesh.position.set(0,1.08,0.028);
   hinge.add(screenMesh);
@@ -1482,8 +1485,8 @@ function init(){
     docTop=scrollEl.getBoundingClientRect().top+window.scrollY;
     scrollLen=Math.max(1,scrollEl.offsetHeight-H);
     if(STATIC){ setupStatic(); return; }
-    var targetPx=anchor.stumpW*(isPortrait?0.44:0.62);
-    targetPx=Math.min(targetPx,W*0.86);
+    var targetPx=anchor.stumpW*(isPortrait?0.35:0.62);
+    targetPx=Math.min(targetPx,W*(isPortrait?0.80:0.86));
     var visW=3.35*(W/Math.max(60,targetPx));
     var D=visW/(2*tanF*camera.aspect);
     /* place the laptop: unproject the stump anchor with the same near-level
@@ -1531,7 +1534,7 @@ function init(){
     place();
     for(var fit=0; fit<3; fit++){
       var bb=laptopBBox(), bw=bb.maxX-bb.minX, need=1;
-      if(bw>W*0.94) need=Math.max(need,bw/(W*0.94));
+      if(bw>W*0.92) need=Math.max(need,bw/(W*0.92));
       if(bb.maxY>H*0.975 && bb.maxY>anchor.y+10 && H*0.975>anchor.y+10)
         need=Math.max(need,(bb.maxY-anchor.y)/(H*0.975-anchor.y));
       if(bb.minY<H*0.05 && anchor.y-bb.minY>10 && anchor.y>H*0.05+10)
@@ -1669,8 +1672,14 @@ function init(){
     renderer.render(scene,camera);
   }
 
-  var resizeTimer=null;
+  var resizeTimer=null, lastWinW=window.innerWidth;
   window.addEventListener('resize',function(){
+    /* iOS Safari fires resize when the URL bar shows/hides (a height-only
+       change). Re-running layout() there recomputes the scroll length and
+       drawing buffer mid-scroll, which reads as stutter — so only
+       re-layout when the width actually changes. */
+    if(window.innerWidth===lastWinW) return;
+    lastWinW=window.innerWidth;
     clearTimeout(resizeTimer);
     resizeTimer=setTimeout(layout,150);
   });
