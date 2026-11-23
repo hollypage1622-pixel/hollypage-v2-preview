@@ -996,6 +996,14 @@ function init(){
   var reduced=false;
   try{reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;}catch(e){}
   var STATIC=reduced;
+  if(!STATIC && /(Line\/|FBAN|FBAV|Instagram)/i.test(navigator.userAgent||'')){
+    /* In-app browsers (LINE etc.) resize their viewport mid-scroll in
+       ways that keep breaking the scroll-scrubbed staging however the
+       progress is measured. Give them the static staging instead: same
+       hero frame and content, no scrub. Sales links are often opened
+       inside LINE, so reliability there wins over the movie. */
+    STATIC=true;
+  }
 
   /* ---------- renderer / scene ---------- */
   var renderer=new THREE.WebGLRenderer({canvas:canvas,antialias:true,alpha:true,powerPreference:'high-performance'});
