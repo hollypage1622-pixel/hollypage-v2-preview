@@ -1658,8 +1658,14 @@ function init(){
     new IntersectionObserver(function(en){ inView=en[0].isIntersecting; },{threshold:0}).observe(stage);
   }
   function getP(){
-    var y=window.scrollY||window.pageYOffset;
-    return clamp01((y-docTop)/scrollLen);
+    /* Measure progress from the track's rendered geometry every frame
+       instead of a cached docTop/scrollLen pair. In-app browsers (LINE)
+       resize the viewport mid-scroll, which silently invalidates cached
+       geometry and makes the story jump/zoom; live geometry stays
+       consistent with what is actually on screen. */
+    var r=scrollEl.getBoundingClientRect();
+    var denom=Math.max(1,r.height-stage.clientHeight);
+    return clamp01(-r.top/denom);
   }
   function frame(){
     requestAnimationFrame(frame);
